@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 
 namespace triagemPacientes.Infra.Repositorio
 {
+    //classe que persiste os dados em arquivos CSV
     public class CsvRepository<T> where T : class, new()
     {
         private readonly string _filePath;

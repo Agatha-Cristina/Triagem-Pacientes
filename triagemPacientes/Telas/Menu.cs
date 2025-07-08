@@ -8,6 +8,8 @@ namespace triagemPacientes.Telas
 {
     public class Menu
     {
+        //Primeira tela que o usuário verá ao iniciar o programa, (estético)
+        //metodo que exibe o menu
         public static void ExibirMenu()
         {
             Console.Clear();
@@ -23,10 +25,11 @@ namespace triagemPacientes.Telas
         public static int ObterOpcaoUsuario()
         {
             int opcao;
+            //Laço infinito para garantir que o usuário digite uma opção válida
             while (true)
             {
                 Console.Write("Digite a opção desejada: ");
-                if (int.TryParse(Console.ReadLine(), out opcao) && opcao >= 1 && opcao <= 5)
+                if (int.TryParse(Console.ReadLine(), out opcao) && opcao >= 1 && opcao <= 5 || opcao == 9)
                 {
                     return opcao;
                 }
