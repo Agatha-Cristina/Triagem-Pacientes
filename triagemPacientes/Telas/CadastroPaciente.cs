@@ -5,17 +5,24 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using triagemPacientes.Entidades;
-using triagemPacientes.Infra;
+using triagemPacientes.Services;
 
 namespace triagemPacientes.Telas
 {
     public class CadastroPaciente
     {
+        private readonly IRepository<Paciente> _repo;
+
+        // Recebe o repositório via DI
+        public CadastroPaciente(IRepository<Paciente> repo)
+        {
+            _repo = repo;
+        }
+
         public void ExibirCadastroPaciente()
         {
-            // Verifica se o repositório de pacientes e triagens já foi inicializado
-            //Reutiliza instâncias do repositório de pacientes nos arquivos CSV.
-            var repo = RepositorySingleton<Paciente>.GetInstance("paciente.csv");
+            // Use repository injected via DI
+            var repo = _repo;
             Paciente paciente = new Paciente();
             Console.Clear();
             Console.WriteLine("Cadastro de Paciente");

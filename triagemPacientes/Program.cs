@@ -1,41 +1,80 @@
-﻿using System.Reflection;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
 using triagemPacientes;
 using triagemPacientes.Entidades;
-using triagemPacientes.Infra;
+using triagemPacientes.Services;
 using triagemPacientes.Telas;
+using triagemPacientes.Infra.Repositorio;
 
-//Pede a URL do modelo da api de ML em python, e execulta o programa se a chave for válida
-Console.Write("Informe a URL base da API: ");
-string urlBase = Console.ReadLine();
+// Carrega configurações do appsettings.json
+var config = new ConfigurationBuilder()
+    .SetBasePath(AppContext.BaseDirectory)
+    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+    .Build();
+
+var urlBase = config["ApiUrlBase"];
+if (string.IsNullOrWhiteSpace(urlBase))
+{
+    Console.Write("Informe a URL base da API: ");
+    urlBase = Console.ReadLine();
+    config["ApiUrlBase"] = urlBase;
+}
+
+// Decide tipo de banco
+var dbType = config["DataBaseType"]?.Replace("//", "").Trim() ?? "CSV";
+
+// Configura IoC/DI inverção de controle / injeção de dependência
+var services = new ServiceCollection()
+    .AddSingleton<IConfiguration>(config)
+    .AddTransient<Diagnosticar>()
+    .AddTransient<CadastroPaciente>()
+    .AddTransient<ExecutarTriagem>();
+
+// Registro condicional dos repositórios
+if (dbType.Equals("MongoDB", StringComparison.OrdinalIgnoreCase))
+{
+    services.AddSingleton<IRepository<Paciente>>(sp =>
+        new MongoRepository<Paciente>(sp.GetRequiredService<IConfiguration>()));
+    services.AddSingleton<IRepository<Triagem>>(sp =>
+        new MongoRepository<Triagem>(sp.GetRequiredService<IConfiguration>()));
+}
+else // CSV
+{
+    services.AddSingleton<IRepository<Paciente>>(sp =>
+        new CsvRepository<Paciente>());
+    services.AddSingleton<IRepository<Triagem>>(sp =>
+        new CsvRepository<Triagem>());
+}
+
+var provider = services.BuildServiceProvider();
+
 bool continuar = true;
 while (continuar)
 {
-    //Enquanto for válida, exibe o menu principal,
-    //que possui 5 opções: Triagem, cadastro de paciente,
-    //listagem de pacientes, listagem de triagens e diagnóstico
     Menu.ExibirMenu();
     int opcao = Menu.ObterOpcaoUsuario();
-    //cria um switch case para cada opção do menu a ser executada
     switch (opcao)
     {
-        //cria um novo objeto da classe ExecutarTriagem e chama o método ExibirTriagem
         case 1:
-            new ExecutarTriagem().ExibirTriagem();
+            // Resolve ExecutarTriagem via DI
+            var executar = provider.GetRequiredService<ExecutarTriagem>();
+            executar.ExibirTriagem();
             break;
         case 2:
-            new CadastroPaciente().ExibirCadastroPaciente();
+            // Resolve CadastroPaciente via DI
+            var cadastro = provider.GetRequiredService<CadastroPaciente>();
+            cadastro.ExibirCadastroPaciente();
             break;
         case 3:
-            //insere um novo objeto da classe RepositorySingleton para o tipo Paciente 
+            //insere um novo objeto da classe RepositoryService para o tipo Paciente 
             //Usa o arquivo paciente.csv como base de dados e guarda na variavel repoPaciente
-            //Singleton é um padrão de projeto, classe que tem apenas uma instância e fornece um ponto global de acesso
-            var repoPaciente = RepositorySingleton<Paciente>.GetInstance("paciente.csv");
+            // Agora usando DI para obter o repositório
+            var repoPaciente = provider.GetRequiredService<IRepository<Paciente>>();
 
             //Lê todos os pacientes armazenados no arquivo GetAll() retorna uma lista de objetos do tipo Paciente
             var pacientes = repoPaciente.GetAll();
             Console.Clear();
-
-            
             Console.WriteLine("Lista de Pacientes:");
             //Percorre cada paciente na lista de pacientes e exibe os dados formatados
             //foreach é uma estrutura de repetição´que lê automaticamente sem precisar de um contador e um incrementador
@@ -48,16 +87,14 @@ while (continuar)
             Console.ReadKey();
             break;
         case 4:
-            // Cria um novo objeto da classe RepositorySingleton para o tipo Triagem
-            var repoTriagem = RepositorySingleton<Triagem>.GetInstance("triagem.csv");
-            // Lê todos os triagens armazenados no arquivo GetAll() retorna uma lista de objetos do tipo Triagem
+            var repoTriagem = provider.GetRequiredService<IRepository<Triagem>>();
             var triagens = repoTriagem.GetAll();
             Console.Clear();
             Console.WriteLine("Lista de Triagens:");
             // Percorre cada triagem na lista de triagens e exibe os dados formatados
             foreach (var triagem in triagens)
             {
-                Console.WriteLine($"ID: {triagem.CodTriagem}, Paciente ID: {triagem.CodPaciente}, Data/Hora: {triagem.DataHora}");
+                Console.WriteLine($"ID: {triagem.Id}, Paciente ID: {triagem.CodPaciente}, Data/Hora: {triagem.DataHora}");
             }
             Console.WriteLine("Pressione qualquer tecla para continuar...");
             Console.ReadKey();
@@ -67,7 +104,9 @@ while (continuar)
             //A função é assíncrona (fazendo requisição HTTP) permite que a execução continue sem esperar a conclusão de uma tarefa
             //Paralelismo: ( a requisição ttp é feita em segundo plano enquanto o programa continua executando)
             //wait força a funçao terminar antes de continuar com o programa
-            Diagnosticar.ExibirDiagnosticar(urlBase).Wait();
+            // Resolve via DI — Diagnosticar recebe IConfiguration no construtor
+            var diagnosticar = provider.GetRequiredService<Diagnosticar>();
+            await diagnosticar.ExibirDiagnosticar();
             break;
         case 9:
             continuar = false;

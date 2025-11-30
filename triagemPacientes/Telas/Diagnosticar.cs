@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Extensions.Configuration;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http.Json;
@@ -6,20 +7,32 @@ using System.Text;
 using System.Threading.Tasks;
 using triagemPacientes.Entidades;
 using triagemPacientes.Infra;
+using triagemPacientes.Services;
 
 namespace triagemPacientes.Telas
 {
     public class Diagnosticar
     {
+        private readonly IConfiguration _config;
+        private readonly IRepository<Triagem> _repoTriagem;
+        private readonly IRepository<Paciente> _repoPaciente;
+
+        public Diagnosticar(IConfiguration config, IRepository<Triagem> repoTriagem, IRepository<Paciente> repoPaciente)
+        {
+            _config = config;
+            _repoTriagem = repoTriagem;
+            _repoPaciente = repoPaciente;
+        }
+
         //metodo assincrono para exibir o diagnostico do paciente (mostra o diagnostico do paciente)
         //enquanto há dualidade de consumir um modelo de diagnóstico desenvolvido no google coolab
-        public static async Task ExibirDiagnosticar(string urlBase)
+        public async Task ExibirDiagnosticar()
         {
+            var urlBase = _config["ApiUrlBase"];
+
             // Repositórios para Triagem e Paciente
-            //Usa o arquivo paciente.csv como base de dados e guarda na variavel repoPaciente
-            //Singleton é um padrão de projeto, classe que tem apenas uma instância e fornece um ponto global de acesso
-            var repoTriagem = RepositorySingleton<Triagem>.GetInstance("triagem.csv");
-            var repoPaciente = RepositorySingleton<Paciente>.GetInstance("paciente.csv");
+            var repoTriagem = _repoTriagem;
+            var repoPaciente = _repoPaciente;
             Console.Clear();
             Console.WriteLine("Diagnosticar Paciente");
             Console.WriteLine("----------------------");
@@ -43,18 +56,18 @@ namespace triagemPacientes.Telas
                     {
                         //string.join: método que concatena os elementos de uma coleção em uma única string, separando-os por vírgula
                         // operador ternário -> vairável = (condição ? retorna_se_verdadeiro : retorna_se_falso)
-                        var sintomas = triagem.Sintomas != null ? string.Join(", ", triagem.Sintomas?.Select(s => s.CodSintoma)): " ";
-                        Console.WriteLine($"Id Triagem: {triagem.CodTriagem}, Data/Hora: {triagem.DataHora}, Sintomas: {sintomas}");
+                        var sintomas = triagem.Sintomas != null ? string.Join(", ", triagem.Sintomas?.Select(s => s.CodSintoma)) : " ";
+                        Console.WriteLine($"Id Triagem: {triagem.Id}, Data/Hora: {triagem.DataHora}, Sintomas: {sintomas}");
                     }
 
                     Console.Write("Digite o ID da triagem que deseja diagnosticar: ");
                     string idTriagem = Console.ReadLine();
 
                     // Busca a triagem selecionada pelo ID informado
-                    var triagemSelecionada = triagens.FirstOrDefault(t => t.CodTriagem == idTriagem);
+                    var triagemSelecionada = triagens.FirstOrDefault(t => t.Id == idTriagem);
                     if (triagemSelecionada != null)
                     {
-                        Console.WriteLine($"Triagem selecionada: {triagemSelecionada.CodTriagem}, Data/Hora: {triagemSelecionada.DataHora}");
+                        Console.WriteLine($"Triagem selecionada: {triagemSelecionada.Id}, Data/Hora: {triagemSelecionada.DataHora}");
                         Console.WriteLine("Sintomas identificados:");
                         foreach (var sintoma in triagemSelecionada.Sintomas)
                         {
@@ -126,8 +139,15 @@ namespace triagemPacientes.Telas
             Console.Clear();
             Console.WriteLine("===== Resultado da Triagem Médica =====\n");
 
-            Console.WriteLine("📥 Entrada (Sintomas codificados):");
-            Console.WriteLine(string.Join(", ", diagnostico.Entrada));
+            Console.WriteLine("📥Entrada (Sintomas codificados):");
+            // Exibe nome do sintoma e valor de diagnostico.Entrada
+            var sintomasEnum = Enum.GetValues(typeof(SintomaEnum)).Cast<SintomaEnum>().ToList();
+            for (int i = 0; i < diagnostico.Entrada.Count && i < sintomasEnum.Count; i++)
+            {
+                var nome = EnumHelper.GetDescription(sintomasEnum[i]);
+                var valor = diagnostico.Entrada[i];
+                Console.WriteLine($"- {nome}: {valor}");
+            }
             Console.WriteLine();
 
             Console.WriteLine("📊 Diagnósticos Prováveis:");

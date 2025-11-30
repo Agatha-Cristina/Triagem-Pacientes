@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using triagemPacientes.Infra.Repositorio;
 
 namespace triagemPacientes.Entidades
 {
+    [Repository("paciente", FileName = "paciente.csv")]
     public class Paciente
     {
         public string Id { get; set; }

@@ -4,12 +4,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using triagemPacientes.Infra.Repositorio;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace triagemPacientes.Entidades
 {
+    [Repository("triagem", FileName = "triagem.csv")]
     public class Triagem
     {
-        public string CodTriagem { get; set; }
+        // Map MongoDB _id to this property when using Mongo repository
+        public string Id { get; set; }
+
         public string CodPaciente { get; set; }
         public string Diagnostico { get; set; }
         public DateTime DataHora { get; set; }

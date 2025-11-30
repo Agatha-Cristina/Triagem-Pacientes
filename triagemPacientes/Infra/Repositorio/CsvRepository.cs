@@ -6,11 +6,12 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using triagemPacientes.Services;
 
 namespace triagemPacientes.Infra.Repositorio
 {
     //classe que persiste os dados em arquivos CSV
-    public class CsvRepository<T> where T : class, new()
+    public class CsvRepository<T> : IRepository<T> where T : class, new()
     {
         private readonly string _filePath;
         private readonly CsvConfiguration _config = new(CultureInfo.InvariantCulture)
@@ -22,6 +23,21 @@ namespace triagemPacientes.Infra.Repositorio
         {
             _filePath = filePath;
             EnsureFileExists();
+        }
+
+        // Novo construtor que obtém o filePath a partir do atributo Repository
+        public CsvRepository()
+            : this(GetFileNameFromAttribute())
+        {
+        }
+
+        private static string GetFileNameFromAttribute()
+        {
+            var attr = (RepositoryAttribute?)Attribute.GetCustomAttribute(typeof(T), typeof(RepositoryAttribute));
+            if (attr != null && !string.IsNullOrWhiteSpace(attr.FileName))
+                return attr.FileName;
+            // fallback: tipo em minusculas + .csv
+            return typeof(T).Name.ToLower() + ".csv";
         }
 
         private void EnsureFileExists()
